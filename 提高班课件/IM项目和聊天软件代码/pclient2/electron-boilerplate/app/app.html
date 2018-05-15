@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Electron Boilerplate</title>
+  <link href="stylesheets/main.css" rel="stylesheet" type="text/css">
+  <script>
+  const {ipcRenderer} = require('electron');
+  </script>
+</head>
+<body>
+
+  <div class="container">
+    <h1 id="greet"></h1>
+    <p>
+      Welcome to <a href="http://electron.atom.io" class="js-external-link">Electron</a> app running on this magnificent <strong id="os"></strong> machine.
+    </p>
+    <p>
+      App author: <strong id="author"></strong>
+    </p>
+    <p>
+      Environment: <strong id="env"></strong>
+    </p>
+    <p>
+      Electron version: <strong id="electron-version"></strong>
+    </p>
+	<button id="btn1">click1</button>
+	<script>
+	    btn1.onclick=function(){
+			//var v = ipcRenderer.sendSync("rendermsg",{name:'rupeng',id:3});
+			//alert(v);
+			/*
+			var fs = require('fs');
+			fs.readFile("d:/1.txt","utf8",function(err,data){
+				alert(data);
+			});*/
+		};
+		ipcRenderer.on("hello",function(event,arg){
+			//alert(arg);
+		});
+	</script>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

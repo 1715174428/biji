@@ -1,0 +1,144 @@
+﻿@model UserCenter.NETSDK.User
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>@Model.NickName</title>
+    <script src="~/Scripts/nodeConflict.js"></script>
+    <script src="https://cdn.bootcss.com/vue/2.3.3/vue.min.js"></script>
+    <script src="https://cdn.bootcss.com/axios/0.16.2/axios.min.js"></script>
+    <script src="~/Scripts/jquery-1.10.2.js"></script>
+    <script src="~/Scripts/jquery.signalR-2.1.2.js"></script>
+    <script src="~/signalr/hubs" type="text/javascript"></script>
+    <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.0/weui.min.css">
+    <script type="text/javascript" src="https://res.wx.qq.com/open/libs/weuijs/1.1.1/weui.min.js"></script>   
+    <script type="text/javascript">
+        var { ipcRenderer } = nodeRequire('electron');
+    </script>
+</head>
+<body>
+    <audio id="audioNotify" style="display:none" controls="controls">
+        <source src="~/Scripts/im/chat/notify.mp3" type="audio/mp3">
+    </audio>
+    <div id="app"> 
+        <div class="weui-cells" id="groupList">
+            <a v-for="g in groups"  v-on:click="groupClick(g)" style="display:none" v-show="true" class="weui-cell weui-cell_access" href="javascript:;">
+                <div class="weui-cell__bd">
+                    <span style="vertical-align: middle">{{g.name}}</span>
+                    <span class="weui-badge" v-show="g.unReadCount>0" style="margin-left: 5px;">{{g.unReadCount}}</span>
+                </div>
+                <div class="weui-cell__ft">
+                </div>
+            </a>
+        </div>
+    </div>
+    
+    <script type="text/javascript">
+        var groupWindows = [];
+        //根据组id找到对应的窗口，找不到则返回null
+        function findWindowByGroupId(groupId)
+        {
+            //groupWindows中保存打开过的窗口
+            for (var i = 0; i < groupWindows.length; i++) {
+                var win = groupWindows[i];
+                if (win.closed)//窗口是否已经关闭
+                {
+                    continue;
+                }
+                //从url中解析出组Id     
+                var regEx = new RegExp("GroupMain/(\\d+)");
+                var winGroupId = regEx.exec(win.location)[1];           
+                //如果有和这个组Id对应的窗口，则把窗口激活
+                if (winGroupId ==groupId) {
+                    return win;
+                }
+            }
+            return null;
+        }
+
+        var vue = new Vue({
+            el: "#app",
+            data: { groups: []},
+            mounted: function () {
+                var groups = this.groups;
+                axios.post('/Home/LoadGroups', {})
+                .then(function (resp) {
+                    var data = resp.data;
+                    for (var i = 0; i < data.data.length; i++)
+                    {
+                        var group = data.data[i];
+                        groups.push({ id: group.id, name: group.name, unReadCount:0 });
+                    }
+                })
+                .catch(function (error) {
+                    alert("LoadGroups错误，" + error);
+                });                
+            },
+            methods:
+            {
+                groupClick: function(g)
+                {
+                    var win = findWindowByGroupId(g.id);
+                    if (win)
+                    {
+                        //如果窗口已经打开，则尝试激活
+                        win.focus();
+                    }
+                    else
+                    {
+                        //如果没有对应的窗口，打开窗口
+                        var win = window.open("/Home/GroupMain/" + g.id);
+                        groupWindows.push(win);
+                    }
+                    g.unReadCount = 0;//未读消息清零
+                    //停止图标闪烁
+                    ipcRenderer.send("stopTrayIconBlink");
+                }
+            }
+        });
+    </script>
+    <script type="text/javascript">
+        $.connection.chatHub.client.onMessage = function (msg)
+        {
+            var win = findWindowByGroupId(msg.targetGroupId);
+            if (win)
+            {
+                win.postMessage({ msgName:"onMessage",msg:msg},'*');
+            }
+            else
+            {
+                for (var i = 0; i < vue.groups.length; i++)
+                {
+                    if (vue.groups[i].id == msg.targetGroupId)
+                    {
+                        if (!(vue.groups[i].unReadCount))
+                        {
+                            vue.groups[i].unReadCount = 0;
+                        }
+                        vue.groups[i].unReadCount++;
+                    }
+                }
+                //如果没有打开群组窗口，则托盘闪烁
+                ipcRenderer.send("startTrayIconBlink");
+                document.getElementById("audioNotify").play();//声音响
+            }
+        }
+        $.connection.hub.start().fail(function () {
+            alert("start失败");
+        });
+
+        window.addEventListener('message', function (event)
+        {
+            if (event.data.msgName == "sendGroupMessage")
+            {
+                var groupId = event.data.groupId;
+                var message = event.data.message;
+                $.connection.chatHub.server.sendGroupMessage(groupId, message)
+                    .fail(function () { alert("发送失败"); });
+            }
+        }, false);
+    </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+﻿
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Login</title>
+    <script src="~/Scripts/nodeConflict.js"></script>
+    <script src="https://cdn.bootcss.com/vue/2.3.3/vue.min.js"></script>
+    <script src="https://cdn.bootcss.com/axios/0.16.2/axios.min.js"></script>
+    <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.0/weui.min.css">
+    <script type="text/javascript" src="https://res.wx.qq.com/open/libs/weuijs/1.1.1/weui.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="weui-cells weui-cells_form">
+            <div class="weui-cell">
+                <div class="weui-cell__hd"><label class="weui-label">手机号</label></div>
+                <div class="weui-cell__bd">
+                    <input class="weui-input" type="text"placeholder="请输入手机号"  v-model="phoneNum" />
+                </div>
+            </div>
+            <div class="weui-cell weui-cells_form">
+                <div class="weui-cell__hd">
+                    <label class="weui-label">密码</label>
+                </div>
+                <div class="weui-cell__bd">
+                    <input class="weui-input" type="password" v-model="password" placeholder="请输入密码" />
+                </div>
+            </div>
+        </div>
+        <div class="weui-btn-area">
+            <a class="weui-btn weui-btn_primary" href="javascript:" id="btnLogin" v-on:click="login">登录</a>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var vue = new Vue({
+            el: "#app",
+            data: { phoneNum: '', password: '' },
+            methods:
+            {
+                login: function ()
+                {
+                    axios.post('/Home/Login', {
+                        phoneNum: this.phoneNum,
+                        password: this.password
+                    })
+                    .then(function (resp) {
+                        var data = resp.data;
+                        if (data.status == "ok")
+                        {
+                            location.href = "/Home/Main";
+                        }
+                        else
+                        {
+                            alert("登录失败");
+                        }
+                    })
+                    .catch(function (error) {
+                        alert("登录错误，"+error);
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

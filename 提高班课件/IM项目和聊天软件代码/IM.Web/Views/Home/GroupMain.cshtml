@@ -1,0 +1,179 @@
+﻿@model UserCenter.NETSDK.UserGroup
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>@Model.Name</title>
+    <script src="~/Scripts/nodeConflict.js"></script>
+    <script src="https://cdn.bootcss.com/vue/2.3.3/vue.min.js"></script>
+    <script src="https://cdn.bootcss.com/axios/0.16.2/axios.min.js"></script>
+    <link href="~/Scripts/im/chat/style.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://res.wx.qq.com/open/libs/weui/1.1.0/weui.min.css">
+    <script type="text/javascript" src="https://res.wx.qq.com/open/libs/weuijs/1.1.1/weui.min.js"></script>
+    <style>
+        .membersList {
+            float: left;
+            width: 20%;
+            min-width:100px;
+            height: 450px;
+            overflow-x: auto;
+            overflow-y: auto;
+            border-right-style: inset;
+        }
+
+        .chatbox {
+            float: left;
+            width: 78%;
+            height: 450px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+
+        .content-reply-box .mg10 img {
+            max-width: 100%;
+        }
+
+        body {
+            overflow-x: hidden; /*横向没有滚动条*/
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="weui-cells membersList">
+            <a style="display:none" v-show="true" v-for="user in groupUsers" class="weui-cell weui-cell_access" href="javascript:;">
+                <div class="weui-cell__bd">
+                    <span style="vertical-align: middle"><img :src="user.isOnline?'/images/onlineuser.png':'/images/offlineuser.png'" /><span>{{user.nickName}}</span></span>
+                </div>
+            </a>
+        </div>
+        <div class="chatbox" id="chatbox">
+            <ul class="content-reply-box mg10" id="msgList" style="display:none" v-show="true">
+                <li v-for="msg in messages" class="even"><span class="user ui-link"><img class="img-responsive avatar_" src="/images/onlineuser.png"><span class="user-name">{{msg.fromUserNickName}}</span></span><div class="reply-content-box"><span class="reply-time">{{msg.createDateTime}}</span><div class="reply-content pr"><span class="arrow">&nbsp;</span><span class="chatMsgRecord">{{msg.message}}</span></div></div></li>
+            </ul>
+        </div>
+        <div style="clear:both" class="weui-cells weui-cells_form">
+            <div class="weui-cell">
+                <div class="weui-cell__bd">
+                    <input type="text" class="weui-input" v-model="message" v-on:keydown="msgKeyDown" />
+                </div>
+                <div class="weui-cell__hd">
+                    <input type="button" class="weui-btn weui-btn_primary" value="发送" v-on:click="sendMsg" />
+                </div>
+            </div>          
+            
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var vue = new Vue({
+            el: "#app",
+            data: { groupId:@Model.Id,message:'',groupUsers:[],messages:[]},
+            mounted: function ()
+            {
+                var vueThis = this;
+                //定时刷新在线状态
+                
+                setInterval(function () {
+                    vueThis.reloadGroupUsers();
+                }, 5000);
+
+                this.reloadGroupUsers();
+                var messages = this.messages;
+                //加载历史消息
+                axios.post('/Home/LoadHistoryMessages', {
+                    groupId: this.groupId
+                })
+                .then(function (resp) {
+                    var data = resp.data;
+                    if (data.status != "ok") {
+                        alert(data.msg);
+                        return;
+                    }
+                    for (var i = 0; i < data.data.length; i++) {
+                        var msg = data.data[i];
+                        messages.push(msg);
+                    }
+                })
+                .catch(function (error) {
+                    alert("获取历史消息错误，" + error);
+                });
+            },
+            methods:
+            {
+                sendMsg: function ()
+                {
+                    if (!window.opener)
+                    {
+                        alert("父窗口已经关闭或者已经刷新");
+                        return;
+                    }
+                    window.opener.postMessage({ msgName: "sendGroupMessage", groupId: this.groupId, message: this.message }, '*');
+                    this.message = "";
+                },
+                reloadGroupUsers: function ()
+                {
+                    var groupUsers = this.groupUsers;
+                    //加载用户
+                    axios.post('/Home/LoadGroupUsers', {
+                        groupId: this.groupId
+                    })
+                    .then(function (resp) {
+                        var data = resp.data;
+                        if (data.status != "ok") {
+                            alert(data.msg);
+                            return;
+                        }
+                        groupUsers.splice(0, groupUsers.length);//清空旧的
+                        for (var i = 0; i < data.data.length; i++)
+                        {
+                            var user = data.data[i];
+                            groupUsers.push(user);
+                        }
+                    })
+                    .catch(function (error) {
+                        alert("获取用户错误，" + error);
+                    });
+                },
+                msgKeyDown: function (event)
+                {
+                    if (event && event.keyCode == 13)
+                    {
+                        this.sendMsg();                       
+                    }
+                }
+            },
+            computed:
+            {
+                getMessages: function ()
+                {
+                    return this.messages;
+                }
+            },
+            watch: {
+                //监控computed中getMessages()数据的变化，当getMessages中增加数据后，自动滚动到底部
+                getMessages()
+                {
+                    //对dom的更新要放到vue.$nextTick中
+                    this.$nextTick(() => {
+                        var chatbox = document.getElementById('chatbox');
+                        chatbox.scrollTop = chatbox.scrollHeight;
+                    });
+                }
+            }
+        });
+    </script>
+    <script type="text/javascript">
+        window.addEventListener('message', function (event)
+        {
+            if (event.data.msgName == "onMessage")
+            {
+                var message = event.data.msg;
+                vue.messages.push(message);
+            }
+        }, false);
+    </script>
+</body>
+</html>

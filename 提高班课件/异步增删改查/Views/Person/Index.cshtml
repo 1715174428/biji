@@ -1,0 +1,20 @@
+﻿@model IEnumerable<TestDTO.PersonDTO>
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Index</title>
+</head>
+<body>
+    <div> 
+        <ul>
+            @foreach(var p in Model)
+            {
+                <li>@p.Name  @p.Age</li>
+            }
+        </ul>
+    </div>
+</body>
+</html>
